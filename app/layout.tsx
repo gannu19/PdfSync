@@ -1,9 +1,11 @@
+import {ClerkProvider} from "@clerk/nextjs";
 import type { Metadata } from "next";
 import {  IBM_Plex_Serif, Mona_Sans } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 
 // Load web fonts and expose them as CSS variables for layout styling.
+
 const ibmPlexSerif = IBM_Plex_Serif(
   {
     variable:"--font-ibm-plex-serif",
@@ -40,9 +42,12 @@ export default function RootLayout({
       className={`${ibmPlexSerif.variable} ${monaSans.variable} relative font-sans antialiased`} 
     >
       <body className="min-h-full flex flex-col">
-        {children}
-        <Navbar />
-        </body>
+        {/* ClerkProvider must live inside the body in Next.js App Router. */}
+        <ClerkProvider>
+          {children}
+          <Navbar />
+        </ClerkProvider>
+      </body>
     </html>
   );
 }
