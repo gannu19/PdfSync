@@ -3,6 +3,7 @@ import {  IBM_Plex_Serif, Mona_Sans } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 
+// Load web fonts and expose them as CSS variables for layout styling.
 const ibmPlexSerif = IBM_Plex_Serif(
   {
     variable:"--font-ibm-plex-serif",
