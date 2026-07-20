@@ -5,7 +5,6 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 
 // Load web fonts and expose them as CSS variables for layout styling.
-
 const ibmPlexSerif = IBM_Plex_Serif(
   {
     variable:"--font-ibm-plex-serif",
@@ -44,8 +43,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {/* ClerkProvider must live inside the body in Next.js App Router. */}
         <ClerkProvider>
-          {children}
+          {/* Navbar on every page */}
           <Navbar />
+          {/* Page content rendered here */}
+          {children}
         </ClerkProvider>
       </body>
     </html>
