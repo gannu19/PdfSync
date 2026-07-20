@@ -551,8 +551,29 @@
   .library-search-input {
     @apply flex-1 py-2 px-4 outline-none text-[var(--text-primary)] placeholder:text-[var(--text-muted)];
   }
+  .library-section {
+    @apply max-w-7xl mx-auto w-full;
+  }
   .library-books-grid {
     @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 md:gap-x-10 gap-y-7 md:gap-y-9;
+  }
+  .library-pagination {
+    @apply flex flex-wrap items-center justify-center gap-2 mt-10;
+  }
+  .library-pagination-button {
+    @apply size-10 rounded-lg border border-[#d4c4a8] bg-white text-[#212a3b] text-sm font-semibold transition-all;
+
+    &:hover {
+      @apply border-[#8B7355] bg-[#fff6e5];
+      box-shadow: var(--shadow-soft-sm);
+    }
+  }
+  .library-pagination-button-active {
+    @apply border-[#212a3b] bg-[#212a3b] text-white;
+
+    &:hover {
+      @apply border-[#212a3b] bg-[#212a3b] text-white;
+    }
   }
   .library-empty-card {
     @apply bg-[var(--bg-secondary)] rounded-[14px] p-12 max-w-md mx-auto;
