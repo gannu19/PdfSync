@@ -29,7 +29,7 @@ const BookCard = ({ title, author, coverURL, slug }: BookCardProps) => {
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* Main Card Container - white card with shadow that intensifies on hover */}
-        <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden h-full flex flex-col">
+        <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-lg transition-all duration-300 hover:shadow-2xl">
           
           {/* Image Container - displays book cover with zoom effect on hover */}
           <div className="relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-2xl">
@@ -59,20 +59,20 @@ const BookCard = ({ title, author, coverURL, slug }: BookCardProps) => {
             
             {/* Book Title - limited to 2 lines for consistent card height */}
             <div className="mb-2">
-              <h3 className="text-base md:text-lg font-bold text-gray-900 line-clamp-2 leading-tight hover:text-amber-600 transition-colors">
+              <h3 className="line-clamp-2 text-base font-bold leading-tight text-card-foreground transition-colors hover:text-amber-600 md:text-lg dark:hover:text-amber-400">
                 {title}
               </h3>
             </div>
 
             {/* Book Author - limited to 1 line */}
             <div className="mb-3">
-              <p className="text-sm md:text-base text-gray-600 line-clamp-1 font-medium">
+              <p className="line-clamp-1 text-sm font-medium text-muted-foreground md:text-base">
                 {author}
               </p>
             </div>
 
             {/* Read More Button with arrow icon - navigates to book detail page */}
-            <div className="pt-3 border-t border-gray-100">
+            <div className="border-t border-border/60 pt-3">
               <button 
                 className="inline-flex items-center text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors group/btn"
               >

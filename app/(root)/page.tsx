@@ -28,7 +28,7 @@ const Page = () => {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pt-[94px]">
+    <main className="min-h-screen bg-background pt-[94px] text-foreground transition-colors duration-300">
       {/* Main container - unified wrapper for hero and book sections with consistent max-width and padding */}
       <div className="wrapper">
         {/* Hero Section - displays app introduction and key features */}
