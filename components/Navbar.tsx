@@ -1,8 +1,6 @@
 'use client';
 import Link from 'next/link';
 import React from 'react';
-import Image from "next/image";
-import logo from "../assets/logo.png";
 import { usePathname } from 'next/navigation';
 import { SignInButton, SignUpButton, Show, UserButton, useUser } from '@clerk/nextjs';
 import { cn } from '@/lib/utils';
@@ -25,6 +23,17 @@ const navItems = [
   { label: "Add New", href: "/books/new" },
 ];
 
+const getInitialDarkMode = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const storedTheme = window.localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  return storedTheme ? storedTheme === 'dark' : prefersDark;
+};
+
 const Navbar = () => {
   // Get current pathname to highlight active navigation link
   // Used for active link styling based on current route
@@ -33,16 +42,7 @@ const Navbar = () => {
   // isLoaded: Indicates if Clerk has finished initializing
   // user: Contains user data (firstName, email, etc.) or null if not authenticated
   const { isLoaded, user } = useUser();
-  const [isDark, setIsDark] = React.useState(false);
-
-  React.useEffect(() => {
-    const storedTheme = window.localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initialDark = storedTheme ? storedTheme === 'dark' : prefersDark;
-
-    setIsDark(initialDark);
-    document.documentElement.classList.toggle('dark', initialDark);
-  }, []);
+  const [isDark, setIsDark] = React.useState(getInitialDarkMode);
 
   React.useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
@@ -101,10 +101,12 @@ const Navbar = () => {
             className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 p-1.5 pr-3 text-sm font-medium text-gray-700 shadow-sm transition-all duration-300 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Toggle dark mode"
           >
-            <span className={`flex h-7 w-7 items-center justify-center rounded-full transition-all duration-300 ${isDark ? 'bg-slate-900 text-slate-100' : 'bg-amber-100 text-amber-600'}`}>
-              {isDark ? <MoonStar size={16} /> : <Sun size={16} />}
+            <span className="flex h-7 w-7 items-center justify-center rounded-full transition-all duration-300 bg-amber-100 text-amber-600 dark:bg-slate-900 dark:text-slate-100">
+              <Sun size={16} className="dark:hidden" />
+              <MoonStar size={16} className="hidden dark:block" />
             </span>
-            <span className="hidden sm:inline">{isDark ? 'Dark' : 'Light'}</span>
+            <span className="hidden sm:inline dark:hidden">Light</span>
+            <span className="hidden sm:dark:inline">Dark</span>
           </button>
 
           {/* Show for unauthenticated users - Sign In and Sign Up buttons */}
