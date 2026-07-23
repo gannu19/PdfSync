@@ -1,9 +1,13 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  outputFileTracingRoot: __dirname,
-  images:{remotePatterns:[
-    {protocol:'https', hostname:'covers.openlibrary.org'}
-  ]}
+  outputFileTracingRoot: path.resolve(__dirname),
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'covers.openlibrary.org' }
+    ]
+  }
 };
 
 module.exports = nextConfig;
