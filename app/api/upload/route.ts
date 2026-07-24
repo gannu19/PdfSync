@@ -9,6 +9,7 @@ export async function POST(request: Request) {
     const jsonResponse = await handleUpload({
       body,
       request,
+
       onBeforeGenerateToken: async () => {
         const { userId } = await auth();
 
@@ -24,16 +25,23 @@ export async function POST(request: Request) {
             'image/webp',
           ],
           maximumSizeInBytes: 50 * 1024 * 1024,
+          addRandomSuffix: true,
         };
       },
-      onUploadCompleted: async () => {},
     });
 
     return NextResponse.json(jsonResponse);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Upload failed';
-    const status = message === 'Unauthorized' ? 401 : 400;
 
-    return NextResponse.json({ error: message }, { status });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Upload failed';
+
+    const status =
+      message === 'Unauthorized' ? 401 : 400;
+
+    return NextResponse.json(
+      { error: message },
+      { status }
+    );
   }
 }

@@ -124,6 +124,7 @@ export default function UploadForm() {
                 access: 'public',
                 handleUploadUrl: '/api/upload',
                 contentType: 'application/pdf',
+              
             });
 
             let coverUrl: string;
@@ -134,6 +135,7 @@ export default function UploadForm() {
                     access: 'public',
                     handleUploadUrl: '/api/upload',
                     contentType: coverFile.type,
+                    
                 });
                 coverUrl = uploadedCoverBlob.url;
                 coverBlobKey = uploadedCoverBlob.pathname;
@@ -145,6 +147,7 @@ export default function UploadForm() {
                     access: 'public',
                     handleUploadUrl: '/api/upload',
                     contentType: 'image/png',
+                    
                 })
                 coverUrl = uploadedCoverBlob.url;
                 coverBlobKey = uploadedCoverBlob.pathname;
