@@ -6,6 +6,35 @@ import { generateSlug, serializeData } from "@/lib/utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
 
+export const getBookBySlug = async (slug: string) => {
+    try {
+        await connectToDatabase();
+
+        const book = await Book.findOne({ slug }).lean();
+
+        if (!book) {
+            return {
+                success: false,
+                data: null,
+            };
+        }
+
+        return {
+            success: true,
+            data: serializeData(book),
+        };
+
+    } catch (e) {
+        console.error("Error fetching book by slug:", e);
+
+        return {
+            success: false,
+            data: null,
+            error: e,
+        };
+    }
+};
+
 export const getAllBooks = async () => {
     try {
         await connectToDatabase();
