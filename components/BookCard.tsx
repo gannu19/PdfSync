@@ -36,10 +36,11 @@ const BookCard = ({ title, author, coverURL, slug }: BookCardProps) => {
             <div className="relative h-56 md:h-64 w-full flex items-center justify-center">
               {/* Book cover image - scales up 10% on hover for visual feedback */}
               <Image 
-                src={coverURL} 
+                src={coverURL || 'https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg'} 
                 alt={title} 
                 width={180} 
                 height={280}
+                unoptimized={Boolean(coverURL?.startsWith('data:'))}
                 className={`h-full w-auto object-cover transition-transform duration-300 ${
                   isHovered ? 'scale-110' : 'scale-100'
                 }`}

@@ -29,6 +29,9 @@ const monaSans = Mona_Sans(
 export const metadata: Metadata = {
   title: "PdfSync",
   description: "Tranform your books into interactive AI conversations. Upload PDFs, and chat with your books using Voice.",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

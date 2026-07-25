@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Plus, BookOpen, Globe } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -33,12 +34,14 @@ const HeroSection = () => {
               </div>
               
               {/* Call-to-action button with plus icon - users can click to add a new book to their library */}
-              <Button 
-                className="flex w-fit items-center gap-2 rounded-xl border-2 border-amber-200 bg-background px-6 py-6 text-base font-semibold text-amber-600 shadow-md transition-all duration-300 hover:bg-amber-50 hover:shadow-lg dark:border-amber-400/40 dark:bg-slate-900 dark:text-amber-400 dark:hover:bg-slate-800"
-              >
-                <Plus size={20} />
-                Add new book
-              </Button>
+              <Link href="/books/new">
+                <Button 
+                  className="flex w-fit items-center gap-2 rounded-xl border-2 border-amber-200 bg-background px-6 py-6 text-base font-semibold text-amber-600 shadow-md transition-all duration-300 hover:bg-amber-50 hover:shadow-lg dark:border-amber-400/40 dark:bg-slate-900 dark:text-amber-400 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  <Plus size={20} />
+                  Add new book
+                </Button>
+              </Link>
             </div>
 
             {/* CENTER SECTION - Decorative illustration showing three books and a globe */}
