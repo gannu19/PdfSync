@@ -53,7 +53,80 @@ export const escapeRegex = (str: string): string => {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
-// Splits text content into segments for MongoDB storage and search
+export interface PageText {
+    pageNum: number;
+    text: string;
+}
+
+// Page-aware and structure-aware chunking function that preserves page numbers & headings
+export const splitPagesIntoSegments = (
+    pages: PageText[],
+    maxWordsPerSegment: number = 350,
+    overlapWords: number = 40
+): TextSegment[] => {
+    const segments: TextSegment[] = [];
+    let segmentIndex = 0;
+
+    let currentChunkWords: string[] = [];
+    let currentStartPage = 1;
+    let currentHeading = '';
+
+    const headingRegex = /^(?:Chapter\s+\d+|Section\s+\d+|\d+\.\d+\s+[A-Z]|[A-Z0-9\s]{4,50}$)/i;
+
+    for (const page of pages) {
+        const lines = page.text.split(/(?<=[.!?])\s+|\n+/);
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
+
+            if (headingRegex.test(trimmedLine) && trimmedLine.length < 60) {
+                currentHeading = trimmedLine;
+            }
+
+            const lineWords = trimmedLine.split(/\s+/).filter((w) => w.length > 0);
+            if (lineWords.length === 0) continue;
+
+            if (currentChunkWords.length === 0) {
+                currentStartPage = page.pageNum;
+            }
+
+            currentChunkWords.push(...lineWords);
+
+            if (currentChunkWords.length >= maxWordsPerSegment) {
+                const chunkText = currentChunkWords.join(' ');
+                segments.push({
+                    text: chunkText,
+                    segmentIndex,
+                    pageNumber: currentStartPage,
+                    heading: currentHeading || undefined,
+                    wordCount: currentChunkWords.length,
+                });
+                segmentIndex++;
+
+                // Overlap words for continuous context across chunks
+                const overlap = currentChunkWords.slice(currentChunkWords.length - overlapWords);
+                currentChunkWords = [...overlap];
+                currentStartPage = page.pageNum;
+            }
+        }
+    }
+
+    if (currentChunkWords.length > 0) {
+        const chunkText = currentChunkWords.join(' ');
+        segments.push({
+            text: chunkText,
+            segmentIndex,
+            pageNumber: currentStartPage,
+            heading: currentHeading || undefined,
+            wordCount: currentChunkWords.length,
+        });
+    }
+
+    return segments;
+};
+
+// Splits raw text content into segments for MongoDB storage and search (backward compatibility)
 export const splitIntoSegments = (
     text: string,
     segmentSize: number = 500, // Maximum words per segment
@@ -81,6 +154,7 @@ export const splitIntoSegments = (
     segments.push({
       text: segmentText,
       segmentIndex,
+      pageNumber: 1,
       wordCount: segmentWords.length,
     });
 
@@ -156,8 +230,8 @@ export async function parsePDFFile(file: File) {
     // Convert canvas to data URL
     const coverDataURL = canvas.toDataURL('image/png');
 
-    // Extract text from all pages
-    let fullText = '';
+    // Extract page-by-page text while preserving page numbers
+    const pages: PageText[] = [];
 
     for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
       const page = await pdfDocument.getPage(pageNum);
@@ -166,11 +240,14 @@ export async function parsePDFFile(file: File) {
           .filter((item) => 'str' in item)
           .map((item) => (item as { str: string }).str)
           .join(' ');
-      fullText += pageText + '\n';
+
+      if (pageText.trim()) {
+        pages.push({ pageNum, text: pageText });
+      }
     }
 
-    // Split text into segments for search
-    const segments = splitIntoSegments(fullText);
+    // Split page text into structured segments with page numbers & headings
+    const segments = splitPagesIntoSegments(pages);
 
     // Clean up PDF document resources
     await pdfDocument.cleanup();

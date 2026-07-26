@@ -2,6 +2,7 @@ import { IBook, Messages } from "@/types";
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { DEFAULT_VOICE } from "@/lib/constants";
+import { askBookQuestion } from "@/lib/actions/book.actions";
 
 export type CallStatus = 'idle' | 'connecting' | 'starting' | 'listening' | 'thinking' | 'speaking';
 
@@ -24,6 +25,7 @@ export const useVapi = (book: IBook) => {
     const [limitError, setLimitError] = useState<string | null>(null);
 
     const timeRef = useRef<NodeJS.Timeout | null>(null);
+    const recognitionRef = useRef<any>(null);
     const bookRef = useLatestRef(book);
 
     const isActive = status === 'listening' || status === 'thinking' || status === 'speaking' || status === 'starting';
@@ -42,11 +44,106 @@ export const useVapi = (book: IBook) => {
         }
     }, []);
 
+    // Speech Synthesis helper to play voice audio through device speakers
+    const speakText = useCallback((text: string, onEnd?: () => void) => {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+
+            const cleanSpeechText = text
+                .replace(/\*\*/g, '')
+                .replace(/•/g, '')
+                .replace(/#/g, '')
+                .replace(/`/g, '');
+
+            const utterance = new SpeechSynthesisUtterance(cleanSpeechText);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+
+            utterance.onend = () => {
+                if (onEnd) onEnd();
+            };
+
+            utterance.onerror = (e) => {
+                console.error("Speech synthesis error:", e);
+                if (onEnd) onEnd();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        } else {
+            if (onEnd) onEnd();
+        }
+    }, []);
+
+    // Stop speaking audio
+    const stopAudio = useCallback(() => {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
+    }, []);
+
+    // Speech Recognition helper to listen to user microphone
+    const startListeningMic = useCallback(() => {
+        if (typeof window !== 'undefined') {
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                try {
+                    if (recognitionRef.current) {
+                        recognitionRef.current.stop();
+                    }
+
+                    const rec = new SpeechRecognition();
+                    rec.continuous = false;
+                    rec.interimResults = true;
+                    rec.lang = 'en-US';
+
+                    rec.onresult = (event: any) => {
+                        let transcript = '';
+                        for (let i = event.resultIndex; i < event.results.length; ++i) {
+                            transcript += event.results[i][0].transcript;
+                        }
+                        setCurrentUserMessage(transcript);
+
+                        if (event.results[0]?.isFinal) {
+                            const finalTranscript = transcript;
+                            setCurrentUserMessage('');
+                            rec.stop();
+                            if (finalTranscript.trim()) {
+                                sendMessage(finalTranscript);
+                            }
+                        }
+                    };
+
+                    rec.onerror = (event: any) => {
+                        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                            console.warn("Speech recognition notice:", event.error);
+                        }
+                    };
+
+                    rec.start();
+                    recognitionRef.current = rec;
+                } catch (e) {
+                    console.error("Error starting speech recognition:", e);
+                }
+            }
+        }
+    }, []);
+
+    const stopListeningMic = useCallback(() => {
+        if (recognitionRef.current) {
+            try {
+                recognitionRef.current.stop();
+            } catch (e) {}
+            recognitionRef.current = null;
+        }
+    }, []);
+
     useEffect(() => {
         return () => {
             stopTimer();
+            stopAudio();
+            stopListeningMic();
         };
-    }, [stopTimer]);
+    }, [stopTimer, stopAudio, stopListeningMic]);
 
     const start = async () => {
         try {
@@ -58,13 +155,16 @@ export const useVapi = (book: IBook) => {
                 setTimeout(() => {
                     setStatus('listening');
                     startTimer();
+                    startListeningMic();
 
                     if (messages.length === 0) {
+                        const welcomeText = `Hello! I am your AI assistant for "${bookRef.current?.title || 'this book'}" by ${bookRef.current?.author || 'the author'}. What would you like to discuss today?`;
                         const welcomeMsg: Messages = {
                             role: 'assistant',
-                            content: `Hello! I am your AI assistant for "${bookRef.current?.title || 'this book'}" by ${bookRef.current?.author || 'the author'}. What would you like to discuss today?`
+                            content: welcomeText,
                         };
                         setMessages([welcomeMsg]);
+                        speakText(welcomeText);
                     }
                 }, 800);
             }, 600);
@@ -77,6 +177,8 @@ export const useVapi = (book: IBook) => {
 
     const stop = async () => {
         stopTimer();
+        stopAudio();
+        stopListeningMic();
         setStatus('idle');
         setCurrentMessage('');
         setCurrentUserMessage('');
@@ -87,6 +189,8 @@ export const useVapi = (book: IBook) => {
         if (!trimmed) return;
 
         setLimitError(null);
+        stopAudio();
+        stopListeningMic();
 
         if (status === 'idle') {
             startTimer();
@@ -100,20 +204,15 @@ export const useVapi = (book: IBook) => {
         setMessages((prev) => [...prev, userMsg]);
         setStatus('thinking');
 
-        setTimeout(() => {
-            let replyText = `Based on "${bookRef.current?.title || 'the book'}" by ${bookRef.current?.author || 'the author'}: `;
-            if (trimmed.toLowerCase().includes('summary') || trimmed.toLowerCase().includes('summarize')) {
-                replyText += `"${bookRef.current?.title || 'This book'}" provides core concepts, strategic insights, and structured takeaways for deep comprehension.`;
-            } else if (trimmed.toLowerCase().includes('who') || trimmed.toLowerCase().includes('author')) {
-                replyText += `${bookRef.current?.author || 'The author'} is a renowned writer offering practical frameworks in this field.`;
-            } else {
-                replyText += `Here are key takeaways regarding "${trimmed}". Feel free to ask more details!`;
-            }
+        try {
+            const response = await askBookQuestion(bookRef.current._id, trimmed, messages);
+            const replyText = response?.answer || `Based on "${bookRef.current?.title}": Here is key information regarding your question.`;
 
             setStatus('speaking');
             setCurrentMessage(replyText);
 
-            setTimeout(() => {
+            // Speak response out loud through browser speakers
+            speakText(replyText, () => {
                 const assistantMsg: Messages = {
                     role: 'assistant',
                     content: replyText,
@@ -121,8 +220,14 @@ export const useVapi = (book: IBook) => {
                 setMessages((prev) => [...prev, assistantMsg]);
                 setCurrentMessage('');
                 setStatus('listening');
-            }, 1000);
-        }, 1200);
+                startListeningMic();
+            });
+
+        } catch (error) {
+            console.error("Error asking book question:", error);
+            setStatus('listening');
+            startListeningMic();
+        }
     };
 
     const clearErrors = async () => {

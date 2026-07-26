@@ -7,6 +7,9 @@ const BookSegmentSchema = new Schema<IBookSegment>({
     content: { type: String, required: true },
     segmentIndex: { type: Number, required: true, index: true },
     pageNumber: { type: Number, index: true },
+    heading: { type: String },
+    section: { type: String },
+    embedding: { type: [Number], default: undefined },
     wordCount: { type: Number, required: true },
 }, { timestamps: true });
 
