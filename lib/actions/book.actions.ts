@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/database/mongoose";
 import { generateSlug, serializeData } from "@/lib/utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
+import { del } from '@vercel/blob';
 
 export const getBookBySlug = async (slug: string) => {
     try {
@@ -125,6 +126,57 @@ export const createBook = async (data: CreateBook) => {
 
         return {
             success: false,
+            error: e,
+        };
+    }
+};
+
+export const deleteBook = async (bookId: string) => {
+    try {
+        await connectToDatabase();
+
+        const book = await Book.findById(bookId);
+        if (!book) {
+            return {
+                success: false,
+                message: "Book not found",
+            };
+        }
+
+        // Attempt to clean up stored Blob files
+        try {
+            if (book.fileBlobKey) {
+                await del(book.fileBlobKey);
+            } else if (book.fileURL) {
+                await del(book.fileURL);
+            }
+
+            if (book.coverBlobKey) {
+                await del(book.coverBlobKey);
+            } else if (book.coverURL && !book.coverURL.startsWith('data:')) {
+                await del(book.coverURL);
+            }
+        } catch (blobErr) {
+            console.warn("Notice: Blob file cleanup skipped/failed:", blobErr);
+        }
+
+        // Delete all associated book segments from database
+        await BookSegment.deleteMany({ bookId });
+
+        // Delete book document
+        await Book.findByIdAndDelete(bookId);
+
+        return {
+            success: true,
+            message: "Book deleted successfully",
+        };
+
+    } catch (e) {
+        console.error("Error deleting book: ", e);
+
+        return {
+            success: false,
+            message: "Failed to delete book",
             error: e,
         };
     }

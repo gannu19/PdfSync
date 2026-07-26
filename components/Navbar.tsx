@@ -1,46 +1,27 @@
 'use client';
+
 import Link from 'next/link';
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import { SignInButton, SignUpButton, Show, UserButton, useUser } from '@clerk/nextjs';
 import { cn } from '@/lib/utils';
-import { MoonStar, Sun } from 'lucide-react';
+import { MoonStar, Sun, Sparkles, BookOpen, PlusCircle } from 'lucide-react';
 import PdfSyncLogo from './PdfSyncLogo';
 
-/**
- * Navbar Component
- * Fixed header navigation with:
- * - App logo and branding on the left
- * - Navigation links (Library, Add New) in the center (hidden on mobile)
- * - Authentication controls on the right (Sign In/Up for guests, User profile for logged-in users)
- * - Active link highlighting based on current route
- * Uses Clerk for authentication management
- */
-
-// Static navigation links shown on all pages.
 const navItems = [
-  { label: "Library", href: "/" },
-  { label: "Add New", href: "/books/new" },
+  { label: "Library", href: "/", icon: BookOpen },
+  { label: "Add New Book", href: "/books/new", icon: PlusCircle },
 ];
 
 const getInitialDarkMode = () => {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
+  if (typeof window === 'undefined') return false;
   const storedTheme = window.localStorage.getItem('theme');
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
   return storedTheme ? storedTheme === 'dark' : prefersDark;
 };
 
 const Navbar = () => {
-  // Get current pathname to highlight active navigation link
-  // Used for active link styling based on current route
   const pathName = usePathname();
-  // Clerk hook to access user authentication state and user data
-  // isLoaded: Indicates if Clerk has finished initializing
-  // user: Contains user data (firstName, email, etc.) or null if not authenticated
   const { isLoaded, user } = useUser();
   const [isDark, setIsDark] = React.useState(getInitialDarkMode);
 
@@ -50,101 +31,99 @@ const Navbar = () => {
   }, [isDark]);
 
   return (
-    <header className="w-full fixed top-0 z-50 border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white bg-white/80 shadow-sm backdrop-blur-sm dark:border-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 dark:bg-slate-950/80">
-      <div className="wrapper navbar-height py-4 flex justify-between items-center">
-        {/* Logo Section */}
-        <Link href="/" className="flex gap-2.5 items-center group">
-          {/* App logo and brand text */}
-          <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 shadow-md group-hover:shadow-lg transition-all duration-300">
-            <PdfSyncLogo className="text-white" />
+    <header className="fixed top-0 inset-x-0 z-50 py-3 px-4 sm:px-6 transition-all duration-300">
+      <div className="max-w-7xl mx-auto rounded-2xl border border-white/40 dark:border-white/10 bg-card/75 dark:bg-card/70 shadow-lg shadow-black/5 backdrop-blur-xl px-4 sm:px-6 py-2.5 flex justify-between items-center transition-all">
+        
+        {/* Brand Logo */}
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-700 via-amber-800 to-amber-950 dark:from-amber-500 dark:via-amber-600 dark:to-orange-700 text-white shadow-md shadow-amber-900/20 group-hover:scale-105 transition-transform duration-300">
+            <PdfSyncLogo className="w-5 h-5 text-white" />
+            <div className="absolute -inset-0.5 rounded-xl bg-amber-500/30 opacity-0 group-hover:opacity-100 blur transition-opacity duration-300 -z-10" />
           </div>
+          
           <div className="flex flex-col">
-            <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent dark:from-slate-100 dark:to-slate-300">
+            <span className="text-lg font-bold font-serif tracking-tight text-foreground flex items-center gap-1.5">
               PdfSync
+              <Sparkles className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400 animate-pulse" />
             </span>
-            <span className="text-xs text-gray-500 font-medium -mt-1 dark:text-slate-400">AI Book Chat</span>
+            <span className="text-[11px] font-medium text-muted-foreground/80 -mt-1 tracking-wide">
+              AI Voice & RAG Reader
+            </span>
           </div>
         </Link>
 
-        {/* Center Navigation - Hidden on mobile (md:flex shows it on medium+ screens) */}
-        <nav className="hidden md:flex gap-1 items-center">
-          {/* Map through navigation items and create links with active state styling */}
-          {navItems.map(({ label, href }) => {
-            // Check if current route matches the nav item to highlight active link
-            const isActive =
-              pathName === href || (href !== '/' && pathName.startsWith(href));
+        {/* Navigation Pills */}
+        <nav className="hidden md:flex items-center gap-1.5 bg-muted/60 dark:bg-muted/40 p-1 rounded-xl border border-border/40">
+          {navItems.map(({ label, href, icon: Icon }) => {
+            const isActive = pathName === href || (href !== '/' && pathName.startsWith(href));
 
             return (
               <Link
                 href={href}
                 key={label}
                 className={cn(
-                  'px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300',
-                  // Active link: gradient background with warm colors
-                  // Inactive link: gray text with hover background
+                  'flex items-center gap-2 px-4 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 cursor-pointer select-none',
                   isActive
-                    ? 'bg-gradient-to-r from-amber-100 to-orange-100 text-amber-900 shadow-sm dark:from-amber-500/20 dark:to-orange-500/20 dark:text-amber-200'
-                    : 'text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                    ? 'bg-amber-800 text-white dark:bg-amber-700 shadow-md shadow-amber-900/15'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-background/60'
                 )}
               >
-                {label}
+                <Icon size={15} />
+                <span>{label}</span>
               </Link>
             );
           })}
         </nav>
 
-        {/* Right Section - Theme toggle and authentication controls */}
+        {/* Right Section: Theme & Auth */}
         <div className="flex items-center gap-3">
+          {/* Theme Toggle Button */}
           <button
             type="button"
             onClick={() => setIsDark((prev) => !prev)}
-            className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 p-1.5 pr-3 text-sm font-medium text-gray-700 shadow-sm transition-all duration-300 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="flex items-center gap-2 rounded-xl border border-border/80 bg-background/80 px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs hover:bg-muted/80 transition-colors cursor-pointer"
             aria-label="Toggle dark mode"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full transition-all duration-300 bg-amber-100 text-amber-600 dark:bg-slate-900 dark:text-slate-100">
-              <Sun size={16} className="dark:hidden" />
-              <MoonStar size={16} className="hidden dark:block" />
+            <span className="flex h-5 w-5 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+              <Sun size={13} className="dark:hidden" />
+              <MoonStar size={13} className="hidden dark:block" />
             </span>
-            <span className="hidden sm:inline dark:hidden">Light</span>
-            <span className="hidden sm:dark:inline">Dark</span>
+            <span className="hidden sm:inline font-medium">{isDark ? 'Dark' : 'Light'}</span>
           </button>
 
-          {/* Show for unauthenticated users - Sign In and Sign Up buttons */}
+          {/* Signed Out Auth Controls */}
           <Show when="signed-out">
             <div className="flex items-center gap-2">
-              {/* Sign In button - Opens Clerk's sign-in modal */}
               <SignInButton>
-                <button className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 transition-all duration-300 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800">
+                <button className="px-3.5 py-2 rounded-xl text-xs font-semibold text-foreground hover:bg-muted/80 transition-colors cursor-pointer">
                   Sign In
                 </button>
               </SignInButton>
 
-              {/* Sign Up button - Opens Clerk's sign-up modal with gradient styling */}
               <SignUpButton>
-                <button className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md hover:shadow-lg transition-all duration-300">
+                <button className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-amber-800 hover:bg-amber-900 dark:bg-amber-700 dark:hover:bg-amber-600 shadow-md shadow-amber-900/15 transition-all cursor-pointer">
                   Sign Up
                 </button>
               </SignUpButton>
             </div>
           </Show>
 
-          {/* Show for authenticated users - User greeting and profile button */}
+          {/* Signed In Profile */}
           <Show when="signed-in">
-            <div className="flex items-center gap-3">
-              {/* Display user's first name greeting (hidden on small screens) */}
+            <div className="flex items-center gap-2.5">
               {isLoaded && user && user.firstName && (
-                <span className="text-sm font-medium text-gray-700 hidden sm:inline dark:text-slate-300">
-                  Hello, <span className="text-amber-600 font-semibold dark:text-amber-400">{user.firstName}</span>
+                <span className="text-xs font-semibold text-muted-foreground hidden sm:inline">
+                  Welcome, <span className="text-foreground font-bold">{user.firstName}</span>
                 </span>
               )}
 
-              {/* Clerk's built-in UserButton - Shows user profile and sign-out options */}
-              <div className="p-1.5 rounded-full transition-all duration-300 hover:bg-gray-100 dark:hover:bg-slate-800">
+              <div className="p-0.5 rounded-full border border-amber-800/30 dark:border-amber-400/30">
                 <UserButton />
               </div>
             </div>
           </Show>
         </div>
+
       </div>
     </header>
   );

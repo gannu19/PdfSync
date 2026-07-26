@@ -81,10 +81,12 @@ export interface TextSegment {
 }
 
 export interface BookCardProps {
+    id?: string;
     title: string;
     author: string;
     coverURL?: string;
     slug: string;
+    onDelete?: (id: string) => void;
 }
 
 export interface Messages {

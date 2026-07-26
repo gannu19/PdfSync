@@ -6,6 +6,8 @@ import { IBook } from '@/types';
 import Link from 'next/link';
 import { Plus, BookOpen, Search, X, User, SearchX, Sparkles, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { deleteBook } from '@/lib/actions/book.actions';
+import { toast } from 'sonner';
 
 const BOOKS_PER_PAGE = 10;
 
@@ -15,18 +17,23 @@ interface BookLibraryProps {
   books: IBook[];
 }
 
-export default function BookLibrary({ books }: BookLibraryProps) {
+export default function BookLibrary({ books: initialBooks }: BookLibraryProps) {
+  const [bookList, setBookList] = useState<IBook[]>(initialBooks);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<SearchFilterMode>('all');
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    setBookList(initialBooks);
+  }, [initialBooks]);
+
   // Filter books based on search query and selected filter mode
   const filteredBooks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return books;
+    if (!query) return bookList;
 
-    return books.filter((book) => {
+    return bookList.filter((book) => {
       const titleMatch = book.title?.toLowerCase().includes(query) || false;
       const authorMatch = book.author?.toLowerCase().includes(query) || false;
 
@@ -34,7 +41,7 @@ export default function BookLibrary({ books }: BookLibraryProps) {
       if (filterMode === 'author') return authorMatch;
       return titleMatch || authorMatch;
     });
-  }, [books, searchQuery, filterMode]);
+  }, [bookList, searchQuery, filterMode]);
 
   // Reset pagination when search query or filter mode changes
   useEffect(() => {
@@ -66,6 +73,22 @@ export default function BookLibrary({ books }: BookLibraryProps) {
     }
   };
 
+  const handleDeleteBook = async (bookId: string) => {
+    if (!confirm("Are you sure you want to delete this book?")) return;
+    try {
+      const res = await deleteBook(bookId);
+      if (res.success) {
+        toast.success("Book deleted successfully");
+        setBookList((prev) => prev.filter((b) => (b._id || (b as any).id) !== bookId));
+      } else {
+        toast.error(res.message || "Failed to delete book");
+      }
+    } catch (err) {
+      console.error("Delete book error:", err);
+      toast.error("Failed to delete book");
+    }
+  };
+
   const isFiltered = searchQuery.trim().length > 0 || filterMode !== 'all';
 
   return (
@@ -77,15 +100,15 @@ export default function BookLibrary({ books }: BookLibraryProps) {
             Uploaded Books
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {books.length === 0
+            {bookList.length === 0
               ? 'No books in library'
               : isFiltered
               ? `Found ${filteredBooks.length} ${filteredBooks.length === 1 ? 'book' : 'books'} matching search`
-              : `${books.length} ${books.length === 1 ? 'book' : 'books'} available`}
+              : `${bookList.length} ${bookList.length === 1 ? 'book' : 'books'} available`}
           </p>
         </div>
 
-        {books.length > 0 && (
+        {bookList.length > 0 && (
           <Link href="/books/new" className="shrink-0">
             <Button className="flex items-center gap-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-medium px-4 py-2.5 shadow-sm transition-all duration-200 cursor-pointer">
               <Plus size={16} />
@@ -96,7 +119,7 @@ export default function BookLibrary({ books }: BookLibraryProps) {
       </div>
 
       {/* Modern Search Control Bar */}
-      {books.length > 0 && (
+      {bookList.length > 0 && (
         <div className="mb-8 rounded-2xl border border-border/70 bg-card/80 p-4 md:p-5 shadow-sm backdrop-blur-md transition-all">
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
             
@@ -218,7 +241,7 @@ export default function BookLibrary({ books }: BookLibraryProps) {
       )}
 
       {/* Main Content Area: Books Grid or Empty States */}
-      {books.length === 0 ? (
+      {bookList.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-card/50 py-16 px-4 text-center shadow-sm">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 mb-4">
             <BookOpen className="h-8 w-8" />
@@ -261,10 +284,12 @@ export default function BookLibrary({ books }: BookLibraryProps) {
             {visibleBooks.map((book) => (
               <BookCard
                 key={book._id}
+                id={book._id}
                 title={book.title}
                 author={book.author}
                 coverURL={book.coverURL || 'https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg'}
                 slug={book.slug}
+                onDelete={handleDeleteBook}
               />
             ))}
           </div>

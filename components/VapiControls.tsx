@@ -2,10 +2,13 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Mic, MicOff, AlertCircle, X, Send, Keyboard, Sparkles } from "lucide-react";
+import { Mic, MicOff, AlertCircle, X, Send, Keyboard, Sparkles, Trash2, Loader2 } from "lucide-react";
 import useVapi, { CallStatus } from "@/hooks/useVapi";
 import { IBook } from "@/types";
 import { formatDuration } from "@/lib/utils";
+import { deleteBook } from "@/lib/actions/book.actions";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface VapiControlsProps {
     book: IBook;
@@ -49,6 +52,9 @@ const VapiControls = ({ book }: VapiControlsProps) => {
     } = useVapi(book);
 
     const [textInput, setTextInput] = useState('');
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const router = useRouter();
 
     const personaName = book.persona || 'Default Voice';
 
@@ -67,6 +73,26 @@ const VapiControls = ({ book }: VapiControlsProps) => {
         if (!text) setTextInput('');
     };
 
+    const handleDeleteBook = async () => {
+        try {
+            setIsDeleting(true);
+            const res = await deleteBook(book._id);
+            if (res.success) {
+                toast.success("Book deleted successfully");
+                router.push('/');
+            } else {
+                toast.error(res.message || "Failed to delete book");
+                setIsDeleting(false);
+                setShowDeleteModal(false);
+            }
+        } catch (err) {
+            console.error("Delete error:", err);
+            toast.error("Something went wrong deleting the book");
+            setIsDeleting(false);
+            setShowDeleteModal(false);
+        }
+    };
+
     const quickSuggestions = [
         `Summarize "${book.title}"`,
         `Who is ${book.author}?`,
@@ -74,126 +100,178 @@ const VapiControls = ({ book }: VapiControlsProps) => {
     ];
 
     return (
-        <div className="vapi-main-container space-y-6 w-full">
-            {/* SECTION 1: HEADER CARD */}
-            <section className="vapi-header-card w-full shadow-lg border border-[#e8d5b5]/60 transition-all hover:shadow-xl">
-                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 w-full z-10">
+        <div className="space-y-6 w-full">
+            {/* SECTION 1: HEADER & MIC CONTROL BAR */}
+            <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-card/90 p-6 md:p-8 shadow-2xl backdrop-blur-xl">
+                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
                     
-                    {/* Left: Book Cover Image + Overlapping Mic Button */}
-                    <div className="vapi-cover-wrapper">
-                        <Image
-                            src={book.coverURL || 'https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg'}
-                            alt={book.title}
-                            width={130}
-                            height={195}
-                            unoptimized={Boolean(book.coverURL?.startsWith('data:'))}
-                            className="vapi-cover-image w-[120px] h-[180px] sm:w-[130px] sm:h-[195px] rounded-xl object-cover border border-black/5"
-                        />
+                    {/* Left: Book Cover Image & Mic Button Overlay */}
+                    <div className="relative group shrink-0">
+                        <div className="relative h-44 w-32 md:h-52 md:w-36 overflow-hidden rounded-2xl border border-border/80 bg-muted shadow-lg">
+                            <Image
+                                src={book.coverURL || 'https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg'}
+                                alt={book.title}
+                                fill
+                                unoptimized={Boolean(book.coverURL?.startsWith('data:'))}
+                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                        </div>
 
-                        {/* Circular white mic button (60px) overlapping cover bottom-right */}
-                        <div className="vapi-mic-wrapper">
-                            {isActive && <div className="vapi-pulse-ring" />}
+                        {/* Mic Control Button floating on book cover */}
+                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-10">
                             <button
                                 type="button"
                                 onClick={handleMicClick}
-                                className={`vapi-mic-btn shadow-md ${
-                                    isActive ? 'vapi-mic-btn-active bg-[#212a3b]' : 'vapi-mic-btn-inactive bg-white'
+                                className={`flex h-14 w-14 items-center justify-center rounded-2xl shadow-xl transition-all duration-300 cursor-pointer ${
+                                    isActive
+                                        ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse ring-4 ring-red-500/30'
+                                        : 'bg-amber-800 hover:bg-amber-900 text-white dark:bg-amber-600 dark:hover:bg-amber-500 hover:scale-105'
                                 }`}
-                                title={isActive ? 'Click to stop session' : 'Click to start talking'}
-                                aria-label={isActive ? 'Stop talking' : 'Start talking'}
+                                title={isActive ? 'Disconnect Voice Session' : 'Start Voice Conversation'}
                             >
-                                {isActive ? (
-                                    <Mic className="w-6 h-6 text-white animate-pulse" />
-                                ) : (
-                                    <MicOff className="w-6 h-6 text-[#212a3b]" />
-                                )}
+                                <Mic className="h-6 w-6" />
                             </button>
                         </div>
                     </div>
 
-                    {/* Right of Cover: Title, Author, Badges */}
-                    <div className="flex-1 min-w-0 text-center sm:text-left flex flex-col justify-between py-1">
-                        <div>
-                            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#212a3b] leading-tight tracking-tight line-clamp-2">
-                                {book.title}
-                            </h1>
-                            <p className="text-base sm:text-lg text-[#3d485e] font-medium mt-1">
-                                by {book.author}
-                            </p>
+                    {/* Right: Book Details & Voice Status Badges */}
+                    <div className="flex-1 text-center md:text-left space-y-4 pt-2 md:pt-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/50 pb-4">
+                            <div>
+                                <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-foreground line-clamp-2">
+                                    {book.title}
+                                </h1>
+                                <p className="text-sm font-medium text-muted-foreground mt-0.5">
+                                    By <span className="text-foreground">{book.author}</span>
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteModal(true)}
+                                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300 text-xs font-semibold transition-colors cursor-pointer shrink-0 shadow-xs self-center sm:self-start"
+                                title="Delete this book"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Delete Book</span>
+                            </button>
                         </div>
 
-                        {/* Row of three small white pill badges */}
-                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mt-5">
-                            {/* 1. Status Indicator */}
-                            <div className="vapi-status-indicator shadow-sm border border-[#e5d9c5]">
-                                <span className={`vapi-status-dot ${getStatusDotClass(status)}`} />
-                                <span className="vapi-status-text">
-                                    {getStatusLabel(status)}
-                                </span>
+                        {/* Status Pills */}
+                        <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 pt-1">
+                            {/* Status Indicator */}
+                            <div className="flex items-center gap-2 rounded-xl bg-muted/80 border border-border/60 px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs">
+                                <span className={`h-2 w-2 rounded-full ${
+                                    isActive ? 'bg-emerald-500 animate-ping' : 'bg-muted-foreground/60'
+                                }`} />
+                                <span>{getStatusLabel(status)}</span>
                             </div>
 
-                            {/* 2. Voice Label */}
-                            <div className="vapi-status-indicator shadow-sm border border-[#e5d9c5]">
-                                <span className="vapi-status-text">
-                                    Voice: {personaName}
-                                </span>
+                            {/* Voice Label */}
+                            <div className="flex items-center gap-1.5 rounded-xl bg-muted/80 border border-border/60 px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs">
+                                <Sparkles className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+                                <span>Voice: {personaName}</span>
                             </div>
 
-                            {/* 3. Timer */}
-                            <div className="vapi-status-indicator shadow-sm border border-[#e5d9c5]">
-                                <span className="vapi-status-text font-mono">
-                                    {formatDuration(duration)}/15:00
-                                </span>
+                            {/* Timer */}
+                            <div className="flex items-center gap-1.5 rounded-xl bg-muted/80 border border-border/60 px-3 py-1.5 text-xs font-mono font-semibold text-foreground shadow-xs">
+                                <span>{formatDuration(duration)} / 15:00</span>
                             </div>
                         </div>
-
                     </div>
+
                 </div>
             </section>
 
-            {/* Limit Error Banner if present */}
-            {limitError && (
-                <div className="error-banner">
-                    <div className="error-banner-content">
-                        <div className="flex items-center gap-2">
-                            <AlertCircle className="error-banner-icon" />
-                            <span className="text-sm font-medium text-red-700">{limitError}</span>
+            {/* DELETE CONFIRMATION MODAL */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+                    <div className="w-full max-w-md bg-card rounded-3xl p-6 shadow-2xl border border-border/80 space-y-5">
+                        <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-950/60">
+                                <Trash2 className="h-5 w-5" />
+                            </div>
+                            <h3 className="font-serif text-lg font-bold text-foreground">Delete Book</h3>
                         </div>
-                        <button onClick={clearErrors} className="error-banner-dismiss">
-                            <X className="w-4 h-4" />
-                        </button>
+                        
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            Are you sure you want to delete <span className="font-bold text-foreground">&quot;{book.title}&quot;</span>? This will permanently remove the PDF, all text segments, and vector embeddings.
+                        </p>
+
+                        <div className="flex items-center justify-end gap-3 pt-2">
+                            <button
+                                type="button"
+                                disabled={isDeleting}
+                                onClick={() => setShowDeleteModal(false)}
+                                className="px-4 py-2 text-sm font-medium rounded-xl border border-border/80 hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isDeleting}
+                                onClick={handleDeleteBook}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-md transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <span>Deleting...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 className="w-4 h-4" />
+                                        <span>Delete Book</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* SECTION 2: TRANSCRIPT AREA */}
-            <section className="vapi-transcript-wrapper w-full">
-                <div className="transcript-container border border-[#e2d8c3]/80 shadow-md flex flex-col justify-between overflow-hidden bg-white rounded-xl min-h-[400px]">
+            {/* Limit Error Banner if present */}
+            {limitError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900/40 dark:bg-red-950/50 dark:text-red-200 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                        <span className="text-sm font-medium">{limitError}</span>
+                    </div>
+                    <button onClick={clearErrors} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg">
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
+            {/* SECTION 2: TRANSCRIPT CHAT AREA */}
+            <section className="w-full">
+                <div className="rounded-3xl border border-border/70 bg-card/90 shadow-2xl backdrop-blur-xl flex flex-col justify-between overflow-hidden min-h-[460px]">
                     
                     {messages.length === 0 && !currentMessage && !currentUserMessage ? (
                         /* EMPTY TRANSCRIPT STATE */
-                        <div className="transcript-empty p-8 my-auto flex flex-col items-center text-center">
-                            <div className="relative mb-4">
-                                <div className="w-16 h-16 rounded-full bg-[#f8f4e9] border border-[#e8d5b5] flex items-center justify-center shadow-inner transition-transform hover:scale-105">
-                                    <Mic className="w-8 h-8 text-[#212a3b]" />
-                                </div>
+                        <div className="p-8 my-auto flex flex-col items-center text-center space-y-4">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 shadow-inner">
+                                <Mic className="w-8 h-8" />
                             </div>
-                            <h3 className="transcript-empty-text">
-                                No conversation yet
-                            </h3>
-                            <p className="transcript-empty-hint">
-                                Click the mic button above to start talking
-                            </p>
+                            <div>
+                                <h3 className="font-serif text-xl font-bold text-foreground">
+                                    Start an AI Conversation
+                                </h3>
+                                <p className="text-sm text-muted-foreground max-w-sm mt-1">
+                                    Click the mic button above to speak, or type a question about <span className="font-medium text-foreground">&quot;{book.title}&quot;</span> below.
+                                </p>
+                            </div>
 
                             {/* Quick Topic Chips */}
-                            <div className="mt-6 flex flex-wrap gap-2 justify-center max-w-md">
+                            <div className="pt-4 flex flex-wrap gap-2 justify-center max-w-md">
                                 {quickSuggestions.map((prompt, idx) => (
                                     <button
                                         key={idx}
                                         onClick={() => handleSend(prompt)}
-                                        className="inline-flex items-center gap-1.5 text-xs font-medium bg-[#fcfaf5] hover:bg-[#f3e4c7] text-[#212a3b] px-3 py-1.5 rounded-lg border border-[#e8d5b5] transition-colors"
+                                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-muted/70 hover:bg-amber-100 dark:hover:bg-amber-950/60 text-foreground px-3.5 py-2 rounded-xl border border-border/60 transition-all cursor-pointer shadow-xs"
                                     >
-                                        <Sparkles className="w-3.5 h-3.5 text-[#8B7355]" />
+                                        <Sparkles className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
                                         <span>{prompt}</span>
                                     </button>
                                 ))}
@@ -201,65 +279,65 @@ const VapiControls = ({ book }: VapiControlsProps) => {
                         </div>
                     ) : (
                         /* MESSAGES & TRANSCRIPT LIST */
-                        <div className="transcript-messages flex-1 p-6 flex flex-col gap-4 overflow-y-auto">
+                        <div className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto max-h-[500px]">
                             {messages.map((msg, index) => (
                                 <div
                                     key={index}
-                                    className={`transcript-message ${
-                                        msg.role === 'user' ? 'transcript-message-user' : 'transcript-message-assistant'
+                                    className={`flex ${
+                                        msg.role === 'user' ? 'justify-end' : 'justify-start'
                                     }`}
                                 >
                                     <div
-                                        className={`transcript-bubble ${
+                                        className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-sm md:text-base leading-relaxed shadow-sm ${
                                             msg.role === 'user'
-                                                ? 'transcript-bubble-user bg-[#663820] text-white shadow-sm'
-                                                : 'transcript-bubble-assistant bg-[#f3e4c7] text-[#212a3b] border border-[#e2d4b7] shadow-sm'
+                                                ? 'bg-amber-800 text-white dark:bg-amber-700 font-medium rounded-br-none'
+                                                : 'bg-muted/90 text-foreground border border-border/60 font-serif rounded-bl-none'
                                         }`}
                                     >
-                                        <p className="text-sm sm:text-base leading-relaxed">{msg.content}</p>
+                                        <p>{msg.content}</p>
                                     </div>
                                 </div>
                             ))}
 
                             {currentUserMessage && (
-                                <div className="transcript-message transcript-message-user">
-                                    <div className="transcript-bubble transcript-bubble-user bg-[#663820] text-white shadow-sm">
-                                        <p className="text-sm sm:text-base leading-relaxed">{currentUserMessage}</p>
+                                <div className="flex justify-end">
+                                    <div className="max-w-[85%] rounded-2xl rounded-br-none bg-amber-800 text-white dark:bg-amber-700 px-5 py-3.5 text-sm md:text-base font-medium shadow-sm">
+                                        <p>{currentUserMessage}</p>
                                     </div>
                                 </div>
                             )}
 
                             {currentMessage && (
-                                <div className="transcript-message transcript-message-assistant">
-                                    <div className="transcript-bubble transcript-bubble-assistant bg-[#f3e4c7] text-[#212a3b] border border-[#e2d4b7] flex items-center gap-2">
-                                        <p className="text-sm sm:text-base leading-relaxed">{currentMessage}</p>
-                                        <span className="transcript-cursor" />
+                                <div className="flex justify-start">
+                                    <div className="max-w-[85%] rounded-2xl rounded-bl-none bg-muted/90 text-foreground border border-border/60 px-5 py-3.5 text-sm md:text-base font-serif flex items-center gap-2 shadow-sm">
+                                        <p>{currentMessage}</p>
+                                        <span className="h-4 w-1.5 rounded-full bg-amber-600 animate-pulse" />
                                     </div>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* TEXT INPUT BAR - TYPE INSTEAD OF SPEAKING */}
-                    <div className="p-4 bg-[#fcfaf7] border-t border-[#eee6d8] flex items-center gap-2">
-                        <div className="flex items-center gap-2 flex-1 bg-white border border-[#e2d8c3] rounded-xl px-3.5 py-2.5 focus-within:ring-2 focus-within:ring-[#663820]/30 transition-all shadow-sm">
-                            <Keyboard className="w-5 h-5 text-[#8B7355] shrink-0" />
+                    {/* TEXT INPUT BAR */}
+                    <div className="p-4 bg-muted/40 border-t border-border/50 flex items-center gap-3">
+                        <div className="flex items-center gap-2.5 flex-1 bg-background border border-border/80 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-amber-700/20 dark:focus-within:ring-amber-400/20 transition-all shadow-inner">
+                            <Keyboard className="w-5 h-5 text-amber-700 dark:text-amber-400 shrink-0" />
                             <input
                                 type="text"
                                 value={textInput}
                                 onChange={(e) => setTextInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                placeholder={`Type your message or question about "${book.title}"...`}
-                                className="w-full text-sm bg-transparent text-[#212a3b] outline-none placeholder:text-gray-400 font-medium"
+                                placeholder={`Ask a question about "${book.title}"...`}
+                                className="w-full text-sm font-medium bg-transparent text-foreground outline-none placeholder:text-muted-foreground/60"
                             />
                         </div>
                         <button
                             type="button"
                             onClick={() => handleSend()}
                             disabled={!textInput.trim()}
-                            className="p-3 bg-[#663820] hover:bg-[#7a4528] disabled:opacity-40 text-white rounded-xl transition-all shadow-sm cursor-pointer shrink-0 flex items-center justify-center"
-                            title="Send text message"
-                            aria-label="Send text message"
+                            className="p-3.5 bg-amber-800 hover:bg-amber-900 dark:bg-amber-700 dark:hover:bg-amber-600 disabled:opacity-40 text-white rounded-2xl transition-all shadow-md cursor-pointer shrink-0 flex items-center justify-center"
+                            title="Send message"
+                            aria-label="Send message"
                         >
                             <Send className="w-4 h-4" />
                         </button>
