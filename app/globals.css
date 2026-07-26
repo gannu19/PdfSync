@@ -6,8 +6,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-mona-sans);
-  --font-serif: var(--font-ibm-plex-serif);
+  --font-sans: var(--font-source-sans);
+  --font-serif: var(--font-source-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -82,20 +82,20 @@
   --shadow-book: 0px 10px 30px 0px rgba(0, 0, 0, 0.1);
 
   /* Base theme colors */
-  --background: #f8f4e9;
-  --foreground: #212a3b;
+  --background: #ffffff;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: #212a3b;
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #212a3b;
-  --primary: #212a3b;
+  --popover-foreground: #0f172a;
+  --primary: #854d0e;
   --primary-foreground: #ffffff;
-  --secondary: #f3e4c7;
-  --secondary-foreground: #212a3b;
-  --muted: #f3e4c7;
-  --muted-foreground: #3d485e;
-  --accent: #fff6e5;
-  --accent-foreground: #212a3b;
+  --secondary: #f8fafc;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #fef3c7;
+  --accent-foreground: #0f172a;
   --destructive: oklch(0.577 0.245 27.325);
   --border: rgba(33, 42, 59, 0.12);
   --input: rgba(33, 42, 59, 0.12);
@@ -161,7 +161,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground text-base md:text-lg leading-relaxed;
   }
 }
 
@@ -287,16 +287,16 @@
     @apply border-[var(--color-brand)];
   }
   .page-title-xl {
-    @apply text-4xl md:text-5xl font-semibold text-foreground tracking-[-0.02em] leading-[54px] font-serif;
+    @apply text-4xl sm:text-5xl md:text-6xl font-bold text-foreground tracking-[-0.02em] leading-tight font-serif;
   }
   .section-title {
-    @apply text-2xl md:text-[30px] font-semibold text-foreground leading-[30px] font-serif;
+    @apply text-3xl md:text-4xl font-bold text-foreground leading-tight font-serif;
   }
   .book-title-lg {
-    @apply text-[30px] font-semibold text-foreground leading-9 mb-2 font-serif;
+    @apply text-3xl md:text-4xl font-bold text-foreground leading-tight mb-2 font-serif;
   }
   .subtitle {
-    @apply text-lg text-muted-foreground leading-relaxed;
+    @apply text-lg md:text-xl text-muted-foreground leading-relaxed font-medium;
   }
   .icon-sm {
     @apply w-5 h-5;

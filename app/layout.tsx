@@ -1,34 +1,21 @@
-import {ClerkProvider} from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import {  IBM_Plex_Serif, Mona_Sans } from "next/font/google";
+import { Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
-import {Toaster} from "sonner";
+import { Toaster } from "sonner";
 
-// Load web fonts and expose them as CSS variables for layout styling.
-const ibmPlexSerif = IBM_Plex_Serif(
-  {
-    variable:"--font-ibm-plex-serif",
-    subsets:['latin'],
-    weight:['400','500','600','700'],
-    display:'swap'
-  }
-)
-
-const monaSans = Mona_Sans(
-  {
-    variable:"--font-mona-sans",
-    subsets:['latin'],
-    display:'swap'
-  }
-)
-
-
-
+// Load Overleaf web font: Source Sans 3
+const sourceSans3 = Source_Sans_3({
+  variable: "--font-source-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "PdfSync",
-  description: "Tranform your books into interactive AI conversations. Upload PDFs, and chat with your books using Voice.",
+  title: "PdfSync - AI Voice & RAG Book Assistant",
+  description: "Transform your PDF books into interactive AI conversations. Upload PDFs, ask questions with page citations, and talk with AI.",
   icons: {
     icon: '/favicon.ico',
   },
@@ -42,17 +29,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${ibmPlexSerif.variable} ${monaSans.variable} relative font-sans antialiased`} 
+      className={`${sourceSans3.variable} relative font-sans antialiased`} 
     >
-      <body className="min-h-full flex flex-col">
-        {/* ClerkProvider must live inside the body in Next.js App Router. */}
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         <ClerkProvider>
-          {/* Navbar on every page */}
           <Navbar />
-          {/* Page content rendered here */}
           {children}
         </ClerkProvider>
-        <Toaster />
+        <Toaster position="bottom-right" />
       </body>
     </html>
   );

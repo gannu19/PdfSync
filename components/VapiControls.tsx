@@ -10,8 +10,11 @@ import { deleteBook } from "@/lib/actions/book.actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { BookOpen } from "lucide-react";
+
 interface VapiControlsProps {
     book: IBook;
+    onPageCitationClick?: (pageNum: number) => void;
 }
 
 const getStatusLabel = (status: CallStatus) => {
@@ -36,7 +39,7 @@ const getStatusDotClass = (status: CallStatus) => {
     }
 };
 
-const VapiControls = ({ book }: VapiControlsProps) => {
+const VapiControls = ({ book, onPageCitationClick }: VapiControlsProps) => {
     const {
         status,
         isActive,
@@ -57,6 +60,29 @@ const VapiControls = ({ book }: VapiControlsProps) => {
     const router = useRouter();
 
     const personaName = book.persona || 'Default Voice';
+
+    // Auto-detect citation in latest AI message and jump PDF viewer!
+    React.useEffect(() => {
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant') {
+            const match = lastMsg.content.match(/\[Page\s*(\d+)\]/i);
+            if (match && match[1] && onPageCitationClick) {
+                const pageNum = parseInt(match[1], 10);
+                onPageCitationClick(pageNum);
+            }
+        }
+    }, [messages, onPageCitationClick]);
+
+    // Also auto-detect citations while streaming currentMessage!
+    React.useEffect(() => {
+        if (currentMessage) {
+            const match = currentMessage.match(/\[Page\s*(\d+)\]/i);
+            if (match && match[1] && onPageCitationClick) {
+                const pageNum = parseInt(match[1], 10);
+                onPageCitationClick(pageNum);
+            }
+        }
+    }, [currentMessage, onPageCitationClick]);
 
     const handleMicClick = () => {
         if (isActive) {

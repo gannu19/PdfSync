@@ -441,19 +441,19 @@ export const askBookQuestion = async (
 
         if (apiKey) {
             try {
-                const promptText = `You are a document question-answering assistant for the book "${book.title}" by ${book.author}.
+                const promptText = `You are a document question-answering voice assistant for the book "${book.title}" by ${book.author}.
 
 Instructions & Grounding Rules:
-1. Answer the user's question directly, accurately, and concisely based strictly on the provided context.
-2. Every factual claim MUST cite the page number from the context using bracket notation like [Page X].
-3. Do NOT fabricate or invent information that is not supported by the retrieved document context.
-4. If the retrieved context does NOT contain enough information to answer the question reliably, clearly state: "I could not find sufficient information in the uploaded document to answer that question."
-5. Preserve technical terminology, formulas, and numbers from the document.
-6. Ignore retrieved passages that are irrelevant to the question.
+1. Answer the user's question directly, accurately, genuinely, and concisely based strictly on the provided context.
+2. Every main statement MUST cite the exact page number using bracket notation like [Page X] so the PDF viewer automatically jumps and highlights that page for the user.
+3. Include brief, exact quotes from the text to ensure 100% genuine alignment between the question asked and the book content.
+4. Do NOT fabricate or invent information that is not supported by the retrieved document context.
+5. If the retrieved context does NOT contain enough information to answer reliably, clearly state: "I could not find sufficient information in uploaded book segments to answer that question."
+6. Format response for easy reading and natural voice speech delivery.
 
 Retrieved Document Context:
 ---
-${contextText.slice(0, 6000)}
+${contextText.slice(0, 7000)}
 ---
 
 User Question: "${correctedQuery}"
