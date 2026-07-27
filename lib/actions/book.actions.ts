@@ -7,6 +7,12 @@ import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
 import { del } from '@vercel/blob';
 
+/**
+ * Fetches a single book document from MongoDB by its unique URL slug.
+ * 
+ * @param {string} slug Book unique URL slug
+ * @returns {Promise<{ success: boolean; data: IBook | null; error?: any }>}
+ */
 export const getBookBySlug = async (slug: string) => {
     try {
         await connectToDatabase();
@@ -36,6 +42,11 @@ export const getBookBySlug = async (slug: string) => {
     }
 };
 
+/**
+ * Retrieves all book documents from MongoDB ordered by creation date descending.
+ * 
+ * @returns {Promise<{ success: boolean; data?: IBook[]; error?: any }>}
+ */
 export const getAllBooks = async () => {
     try {
         await connectToDatabase();
@@ -59,7 +70,12 @@ export const getAllBooks = async () => {
     }
 };
 
-
+/**
+ * Checks if a book with the given title already exists in the database.
+ * 
+ * @param {string} title Book title to check
+ * @returns {Promise<{ exists: boolean; data: IBook | null; error?: any }>}
+ */
 export const checkBookExists = async (title: string) => {
     try {
         await connectToDatabase();
@@ -91,12 +107,18 @@ export const checkBookExists = async (title: string) => {
     }
 };
 
-
+/**
+ * Creates a new Book entry in MongoDB with generated slug and initial totalSegments count.
+ * 
+ * @param {CreateBook} data Object containing book metadata, clerkId, and Blob URLs
+ * @returns {Promise<{ success: boolean; data?: IBook; alreadyExists?: boolean; error?: any }>}
+ */
 export const createBook = async (data: CreateBook) => {
     try {
         await connectToDatabase();
 
         const slug = generateSlug(data.title);
+
 
         const existingBook = await Book.findOne({ slug }).lean();
 
@@ -131,6 +153,12 @@ export const createBook = async (data: CreateBook) => {
     }
 };
 
+/**
+ * Deletes a book by ID, along with its stored Vercel Blob files and associated BookSegments.
+ * 
+ * @param {string} bookId Mongoose ObjectId string of target book
+ * @returns {Promise<{ success: boolean; message: string; error?: any }>} Delete result status
+ */
 export const deleteBook = async (bookId: string) => {
     try {
         await connectToDatabase();
@@ -230,11 +258,21 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+/**
+ * Bulk inserts parsed text segments for a book, generates vector embeddings if Gemini API key is active,
+ * and updates the totalSegments count on the Book document.
+ * 
+ * @param {string} bookId Target Book ObjectId
+ * @param {string} clerkId Owner Clerk user ID
+ * @param {TextSegment[]} segments Array of text segments containing page and heading metadata
+ * @returns {Promise<{ success: boolean; data?: { segmentsCreated: number }; error?: any }>}
+ */
 export const saveBookSegments = async (
     bookId: string,
     clerkId: string,
     segments: TextSegment[]
 ) => {
+
     try {
         await connectToDatabase();
 
@@ -307,8 +345,9 @@ export const saveBookSegments = async (
 /**
  * Speech-to-Text transcript correction using book terminology
  */
-function correctTranscriptWithVocabulary(question: string, bookTitle: string, bookAuthor: string, segments: any[]): string {
+function correctTranscriptWithVocabulary(question: string, bookTitle: string, bookAuthor: string, segments: { heading?: string }[]): string {
     let corrected = question;
+
 
     // Collect terms from title and top headings
     const docTerms = new Set<string>();
@@ -352,11 +391,22 @@ function rewriteQueryWithHistory(question: string, history: { role: string; cont
     return cleanQ;
 }
 
+/**
+ * Executes a Retrieval-Augmented Generation (RAG) query against a book's stored text segments.
+ * Performs speech transcript correction, history-aware query rewriting, hybrid keyword + vector search,
+ * and passes grounded context to Gemini LLM with enforced page citations.
+ * 
+ * @param {string} bookId Target Book ObjectId
+ * @param {string} question User prompt or voice transcript
+ * @param {{ role: string; content: string }[]} [conversationHistory] Prior conversation messages
+ * @returns {Promise<{ success: boolean; answer: string; citations: { pageNumber: number; text: string }[]; error?: any }>}
+ */
 export const askBookQuestion = async (
     bookId: string, 
     question: string,
     conversationHistory: { role: string; content: string }[] = []
 ) => {
+
     try {
         await connectToDatabase();
 

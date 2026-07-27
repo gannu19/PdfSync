@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Plus, BookOpen, Mic, Cpu, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Plus, BookOpen, Mic, Cpu, Sparkles, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+
 
 const HeroSection = () => {
   return (

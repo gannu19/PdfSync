@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
+
 import BookCard from '@/components/BookCard';
 import { IBook } from '@/types';
 import Link from 'next/link';
@@ -18,15 +19,29 @@ interface BookLibraryProps {
 }
 
 export default function BookLibrary({ books: initialBooks }: BookLibraryProps) {
+  const [prevInitialBooks, setPrevInitialBooks] = useState<IBook[]>(initialBooks);
   const [bookList, setBookList] = useState<IBook[]>(initialBooks);
-  const [currentPage, setCurrentPage] = useState(1);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<SearchFilterMode>('all');
+  const [prevQuery, setPrevQuery] = useState('');
+  const [prevFilter, setPrevFilter] = useState<SearchFilterMode>('all');
+
+  const [currentPage, setCurrentPage] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  // Sync state if initialBooks prop updates (derived state pattern)
+  if (prevInitialBooks !== initialBooks) {
+    setPrevInitialBooks(initialBooks);
     setBookList(initialBooks);
-  }, [initialBooks]);
+  }
+
+  // Reset pagination when search query or filter mode changes
+  if (prevQuery !== searchQuery || prevFilter !== filterMode) {
+    setPrevQuery(searchQuery);
+    setPrevFilter(filterMode);
+    setCurrentPage(1);
+  }
 
   // Filter books based on search query and selected filter mode
   const filteredBooks = useMemo(() => {
@@ -42,11 +57,6 @@ export default function BookLibrary({ books: initialBooks }: BookLibraryProps) {
       return titleMatch || authorMatch;
     });
   }, [bookList, searchQuery, filterMode]);
-
-  // Reset pagination when search query or filter mode changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filterMode]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBooks.length / BOOKS_PER_PAGE));
 
@@ -79,7 +89,7 @@ export default function BookLibrary({ books: initialBooks }: BookLibraryProps) {
       const res = await deleteBook(bookId);
       if (res.success) {
         toast.success("Book deleted successfully");
-        setBookList((prev) => prev.filter((b) => (b._id || (b as any).id) !== bookId));
+        setBookList((prev) => prev.filter((b) => (b._id || (b as unknown as { id?: string }).id) !== bookId));
       } else {
         toast.error(res.message || "Failed to delete book");
       }
@@ -88,6 +98,7 @@ export default function BookLibrary({ books: initialBooks }: BookLibraryProps) {
       toast.error("Failed to delete book");
     }
   };
+
 
   const isFiltered = searchQuery.trim().length > 0 || filterMode !== 'all';
 

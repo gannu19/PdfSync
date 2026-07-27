@@ -4,8 +4,14 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { DEFAULT_VOICE } from "@/lib/constants";
 import { askBookQuestion } from "@/lib/actions/book.actions";
 
+/**
+ * Union type representing active call state lifecycle.
+ */
 export type CallStatus = 'idle' | 'connecting' | 'starting' | 'listening' | 'thinking' | 'speaking';
 
+/**
+ * Utility hook keeping a mutable ref synced with state to avoid stale closures inside event listeners.
+ */
 const useLatestRef = <T>(value: T) => {
     const ref = useRef(value);
     useEffect(() => {
@@ -14,7 +20,16 @@ const useLatestRef = <T>(value: T) => {
     return ref;
 };
 
+/**
+ * Custom hook providing real-time AI Voice Assistant functionality for a given Book.
+ * Integrates Web Speech Recognition for voice input, RAG query execution for document context,
+ * and browser Speech Synthesis for voice response playback.
+ * 
+ * @param {IBook} book Active book object context
+ * @returns Object containing state (status, messages, duration) and actions (start, stop, sendMessage)
+ */
 export const useVapi = (book: IBook) => {
+
     const { userId } = useAuth();
 
     const [status, setStatus] = useState<CallStatus>('idle');

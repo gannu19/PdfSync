@@ -10,6 +10,12 @@ import {
     ACCEPTED_IMAGE_TYPES,
 } from './constants';
 
+/**
+ * Validates whether an uploaded file is a valid PDF within file size limits.
+ * 
+ * @param {File} file The target file object to check
+ * @returns {{ success: boolean; error?: string }} Validation status and error message
+ */
 export const validatePDF = (file: File): { success: boolean; error?: string } => {
     if (!ACCEPTED_PDF_TYPES.includes(file.type)) {
         return { success: false, error: 'File must be a PDF' };
@@ -20,6 +26,12 @@ export const validatePDF = (file: File): { success: boolean; error?: string } =>
     return { success: true };
 };
 
+/**
+ * Validates cover image format and size constraints.
+ * 
+ * @param {File} file The target image file object to check
+ * @returns {{ success: boolean; error?: string }} Validation result
+ */
 export const validateCoverImage = (file: File): { success: boolean; error?: string } => {
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
         return { success: false, error: 'File must be an image (jpeg, png, or webp)' };
@@ -30,14 +42,33 @@ export const validateCoverImage = (file: File): { success: boolean; error?: stri
     return { success: true };
 };
 
+/**
+ * Combines Tailwind CSS classes using clsx and twMerge to resolve duplicate utility conflicts.
+ * 
+ * @param {...ClassValue[]} inputs List of class values, objects, or conditional arrays
+ * @returns {string} Merged class names string
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Serialize Mongoose documents to plain JSON objects (strips ObjectId, Date, etc.)
+/**
+ * Serializes Mongoose documents or deep nested objects to plain JSON objects,
+ * stripping Mongo ObjectIds, Date types, and internal methods for Next.js Server Action compatibility.
+ * 
+ * @template T Type of data being serialized
+ * @param {T} data Input object or document
+ * @returns {T} Plain JavaScript object
+ */
 export const serializeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
 
-// Auto generate slug
+/**
+ * Generates a clean, URL-safe slug from string input (e.g. book titles or filenames).
+ * Removes extensions, special characters, and formats whitespace as single hyphens.
+ * 
+ * @param {string} text Target title or string
+ * @returns {string} Clean URL-friendly slug
+ */
 export function generateSlug(text: string): string {
   return text
       .replace(/\.[^/.]+$/, '') // Remove file extension (.pdf, .txt, etc.)
@@ -48,7 +79,12 @@ export function generateSlug(text: string): string {
       .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
 }
 
-// Escape regex special characters to prevent ReDoS attacks
+/**
+ * Escapes regex special characters in string inputs to prevent Regular Expression Denial of Service (ReDoS).
+ * 
+ * @param {string} str Target raw search string
+ * @returns {string} Escaped safe regex string
+ */
 export const escapeRegex = (str: string): string => {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
@@ -58,7 +94,16 @@ export interface PageText {
     text: string;
 }
 
-// Page-aware and structure-aware chunking function that preserves page numbers & headings
+
+/**
+ * Splits page-by-page extracted PDF text into structured, overlapping text segments.
+ * Preserves page numbers and detects heading/section structure for AI citations.
+ * 
+ * @param {PageText[]} pages Array of page numbers and extracted text
+ * @param {number} maxWordsPerSegment Maximum word count threshold per segment (default: 350)
+ * @param {number} overlapWords Overlap word count between consecutive segments (default: 40)
+ * @returns {TextSegment[]} Formatted segments array ready for storage
+ */
 export const splitPagesIntoSegments = (
     pages: PageText[],
     maxWordsPerSegment: number = 350,
@@ -126,13 +171,19 @@ export const splitPagesIntoSegments = (
     return segments;
 };
 
-// Splits raw text content into segments for MongoDB storage and search (backward compatibility)
+/**
+ * Splits raw continuous text content into indexed segments (legacy/fallback chunker).
+ * 
+ * @param {string} text Raw book content
+ * @param {number} segmentSize Max word limit per chunk
+ * @param {number} overlapSize Overlap word count
+ * @returns {TextSegment[]} Array of structured text segments
+ */
 export const splitIntoSegments = (
     text: string,
-    segmentSize: number = 500, // Maximum words per segment
-    overlapSize: number = 50, // Words to overlap between segments for context
+    segmentSize: number = 500,
+    overlapSize: number = 50,
 ): TextSegment[] => {
-  // Validate parameters to prevent infinite loops
   if (segmentSize <= 0) {
     throw new Error('segmentSize must be greater than 0');
   }
@@ -167,7 +218,12 @@ export const splitIntoSegments = (
   return segments;
 };
 
-// Get voice data by persona key or voice ID
+/**
+ * Retrieves voice configuration options based on persona name or voice key.
+ * 
+ * @param {string} [persona] Target persona string or voice ID
+ * @returns {object} Voice configuration object from constants
+ */
 export const getVoice = (persona?: string) => {
   if (!persona) return voiceOptions[DEFAULT_VOICE];
 
@@ -183,13 +239,26 @@ export const getVoice = (persona?: string) => {
   return voiceOptions[DEFAULT_VOICE];
 };
 
-// Format duration in seconds to MM:SS format
+/**
+ * Formats time duration in total seconds into a clean `MM:SS` display string.
+ * 
+ * @param {number} seconds Elapsed time in seconds
+ * @returns {string} Formatted time string (e.g. "04:15")
+ */
 export const formatDuration = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+/**
+ * Parses an uploaded PDF file on the client using `pdfjs-dist`.
+ * Extracts full text per page, chunks content into structured segments,
+ * and renders page 1 on an HTML5 canvas to generate a high-res PNG cover image URL.
+ * 
+ * @param {File} file Target PDF file object
+ * @returns {Promise<{ content: TextSegment[]; cover: string }>} Extracted segments and cover data URL
+ */
 export async function parsePDFFile(file: File) {
   try {
     const pdfjsLib = await import('pdfjs-dist');
@@ -210,7 +279,7 @@ export async function parsePDFFile(file: File) {
 
     // Render first page as cover image
     const firstPage = await pdfDocument.getPage(1);
-    const viewport = firstPage.getViewport({ scale: 2 }); // 2x scale for better quality
+    const viewport = firstPage.getViewport({ scale: 2 }); // 2x scale for high crispness
 
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
@@ -226,6 +295,7 @@ export async function parsePDFFile(file: File) {
       canvasContext: context,
       viewport: viewport,
     }).promise;
+
 
     // Convert canvas to data URL
     const coverDataURL = canvas.toDataURL('image/png');

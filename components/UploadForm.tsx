@@ -5,14 +5,16 @@ import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Image as ImageIcon, FileText, X } from "lucide-react";
-import {useAuth} from "@clerk/nextjs";
-import {toast} from 'sonner'
-import {checkBookExists, createBook, saveBookSegments} from "@/lib/actions/book.actions";
-import {useRouter} from "next/navigation";
-import {upload} from "@vercel/blob/client";
-import {parsePDFFile} from "@/lib/utils";
+import { useAuth } from "@clerk/nextjs";
+import { toast } from 'sonner';
+import { checkBookExists, createBook, saveBookSegments } from "@/lib/actions/book.actions";
+import { useRouter } from "next/navigation";
+import { upload } from "@vercel/blob/client";
+import { parsePDFFile } from "@/lib/utils";
 
-
+/**
+ * Voice selection option interface for AI narration personas.
+ */
 type Voice = {
     id: string;
     label: string;
@@ -28,8 +30,11 @@ const VOICES: Voice[] = [
     { id: 'sarah', label: 'Sarah', description: 'Calm and reassuring', group: 'female' },
 ];
 
-const MAX_PDF_BYTES = 50 * 1024 * 1024; // 50MB
+const MAX_PDF_BYTES = 50 * 1024 * 1024; // 50MB maximum upload limit
 
+/**
+ * Zod validation schema for book upload form data.
+ */
 const formSchema = z.object({
     title: z.string().min(1, { message: 'Title is required' }),
     author: z.string().min(1, { message: 'Author is required' }),
@@ -47,7 +52,13 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+/**
+ * Multi-step Book Upload Form component.
+ * Parses PDF text client-side, extracts custom cover images or generates PNG thumbnails from Page 1,
+ * uploads files to Vercel Blob, saves book metadata in MongoDB, and ingests parsed text segments.
+ */
 export default function UploadForm() {
+
     const {
         register,
         handleSubmit,

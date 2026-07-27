@@ -10,11 +10,16 @@ import PdfSyncLogo from "@/components/PdfSyncLogo";
 import { IBook } from "@/types";
 
 interface BookDetailsClientProps {
+  /** Target book document instance */
   book: IBook;
 }
 
+
 type ViewMode = 'split' | 'chat' | 'pdf';
 
+/**
+ * Returns initial dark mode preference based on localStorage or system preferences.
+ */
 const getInitialDarkMode = () => {
   if (typeof window === 'undefined') return false;
   const storedTheme = window.localStorage.getItem('theme');
@@ -22,7 +27,13 @@ const getInitialDarkMode = () => {
   return storedTheme ? storedTheme === 'dark' : prefersDark;
 };
 
+/**
+ * Client component layout wrapper for book reader & voice workspace.
+ * Manages split-view vs full-chat vs full-PDF screen modes, active page citation syncing,
+ * dark theme toggling, and distraction-free Focus Mode.
+ */
 export default function BookDetailsClient({ book }: BookDetailsClientProps) {
+
   const [activePdfPage, setActivePdfPage] = useState<number>(1);
   const [viewMode, setViewMode] = useState<ViewMode>('split');
   const [isDark, setIsDark] = useState<boolean>(getInitialDarkMode);

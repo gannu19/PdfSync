@@ -6,13 +6,11 @@ import {
   ChevronRight, 
   ZoomIn, 
   ZoomOut, 
-  Maximize2, 
   BookOpen, 
   Sparkles,
   Loader2,
   FileText,
   ExternalLink,
-  Palette,
   Highlighter
 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -23,9 +21,13 @@ if (typeof window !== 'undefined') {
 }
 
 interface PDFViewerProps {
+  /** Blob URL or remote HTTP link to the PDF document */
   fileURL: string;
+  /** Document title for headers */
   title: string;
+  /** Currently requested active page (for programmatic AI citation jumps) */
   activePage?: number;
+  /** Callback fired when page navigation occurs */
   onPageChange?: (pageNum: number) => void;
 }
 
@@ -37,6 +39,11 @@ const HIGHLIGHT_COLORS = [
   { name: 'Pink', hex: '#f472b6', bgClass: 'bg-pink-400' },
 ];
 
+/**
+ * Interactive PDF Canvas Viewer component.
+ * Renders pages dynamically using `pdfjs-dist` on an HTML5 canvas, supporting page jumps,
+ * zoom controls, page citations, full screen view, and page highlight effects.
+ */
 export default function PDFViewer({
   fileURL,
   title,
@@ -45,31 +52,47 @@ export default function PDFViewer({
 }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(activePage);
+  const [prevActivePage, setPrevActivePage] = useState<number>(activePage);
+
   const [scale, setScale] = useState<number>(1.2);
   const [highlightColor, setHighlightColor] = useState<string>('#fde047');
   const [isHighlighted, setIsHighlighted] = useState<boolean>(false);
+
+  const [prevFileURL, setPrevFileURL] = useState<string>(fileURL);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const renderTaskRef = useRef<any>(null);
-  const pdfDocRef = useRef<any>(null);
+  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+  const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
 
-  // Synchronize internal currentPage & trigger highlight pulse when activePage prop changes (e.g. on AI citation jump)
-  useEffect(() => {
-    if (activePage && activePage <= numPages && activePage >= 1) {
+  // Derived state sync for activePage prop changes (programmatic AI citation jump)
+  if (activePage !== prevActivePage) {
+    setPrevActivePage(activePage);
+    if (activePage <= numPages && activePage >= 1) {
       setCurrentPage(activePage);
       setIsHighlighted(true);
+    }
+  }
+
+  // Derived state sync for fileURL changes
+  if (fileURL !== prevFileURL) {
+    setPrevFileURL(fileURL);
+    setIsLoading(true);
+    setError(null);
+  }
+
+  // Auto-dismiss highlight pulse after citation jump
+  useEffect(() => {
+    if (isHighlighted) {
       const timer = setTimeout(() => setIsHighlighted(false), 3500);
       return () => clearTimeout(timer);
     }
-  }, [activePage, numPages]);
+  }, [isHighlighted]);
 
   // Load PDF Document
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
-    setError(null);
 
     const loadPDF = async () => {
       try {
@@ -85,7 +108,7 @@ export default function PDFViewer({
         pdfDocRef.current = doc;
         setNumPages(doc.numPages);
         setIsLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to load PDF in canvas viewer:', err);
         if (isMounted) {
           setError('Could not load PDF in interactive canvas mode.');
@@ -111,7 +134,7 @@ export default function PDFViewer({
 
     const renderPage = async () => {
       try {
-        const page = await pdfDocRef.current.getPage(currentPage);
+        const page = await pdfDocRef.current!.getPage(currentPage);
         if (!isMounted) return;
 
         const canvas = canvasRef.current;
@@ -131,15 +154,18 @@ export default function PDFViewer({
 
         const renderContext = {
           canvasContext: context,
+          canvas: canvas,
           viewport: viewport,
         };
+
 
         const renderTask = page.render(renderContext);
         renderTaskRef.current = renderTask;
 
         await renderTask.promise;
-      } catch (err: any) {
-        if (err?.name !== 'RenderingCancelledException') {
+      } catch (err: unknown) {
+        const errorObj = err as { name?: string };
+        if (errorObj?.name !== 'RenderingCancelledException') {
           console.error('Error rendering page:', err);
         }
       }
@@ -151,6 +177,7 @@ export default function PDFViewer({
       isMounted = false;
     };
   }, [currentPage, scale, isLoading]);
+
 
   const handlePrevPage = () => {
     if (currentPage > 1) {

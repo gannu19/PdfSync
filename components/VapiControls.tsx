@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Mic, MicOff, AlertCircle, X, Send, Keyboard, Sparkles, Trash2, Loader2 } from "lucide-react";
+import { Mic, AlertCircle, X, Send, Keyboard, Sparkles, Trash2, Loader2 } from "lucide-react";
 import useVapi, { CallStatus } from "@/hooks/useVapi";
 import { IBook } from "@/types";
 import { formatDuration } from "@/lib/utils";
@@ -10,13 +10,16 @@ import { deleteBook } from "@/lib/actions/book.actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { BookOpen } from "lucide-react";
-
 interface VapiControlsProps {
+    /** Target book metadata */
     book: IBook;
+    /** Callback triggered when user clicks a page citation link in AI chat responses */
     onPageCitationClick?: (pageNum: number) => void;
 }
 
+/**
+ * Returns user-facing status label string for current call status state.
+ */
 const getStatusLabel = (status: CallStatus) => {
     switch (status) {
         case 'connecting': return 'Connecting...';
@@ -28,18 +31,14 @@ const getStatusLabel = (status: CallStatus) => {
     }
 };
 
-const getStatusDotClass = (status: CallStatus) => {
-    switch (status) {
-        case 'connecting': return 'vapi-status-dot-connecting';
-        case 'starting': return 'vapi-status-dot-starting';
-        case 'listening': return 'vapi-status-dot-listening';
-        case 'thinking': return 'vapi-status-dot-thinking';
-        case 'speaking': return 'vapi-status-dot-speaking';
-        default: return 'vapi-status-dot-ready';
-    }
-};
-
+/**
+ * Vapi Voice Assistant Control Panel component.
+ * Manages real-time microphone interactions, AI transcript display, text question input,
+ * page citation navigation, and book deletion actions.
+ */
 const VapiControls = ({ book, onPageCitationClick }: VapiControlsProps) => {
+
+
     const {
         status,
         isActive,
