@@ -96,6 +96,8 @@ export const useVapi = (book: IBook) => {
         }
     }, []);
 
+    const sendMessageRef = useRef<(text: string) => Promise<void>>(async () => {});
+
     // Speech Recognition helper to listen to user microphone
     const startListeningMic = useCallback(() => {
         if (typeof window !== 'undefined') {
@@ -123,7 +125,7 @@ export const useVapi = (book: IBook) => {
                             setCurrentUserMessage('');
                             rec.stop();
                             if (finalTranscript.trim()) {
-                                sendMessage(finalTranscript);
+                                sendMessageRef.current(finalTranscript);
                             }
                         }
                     };
@@ -147,7 +149,7 @@ export const useVapi = (book: IBook) => {
         if (recognitionRef.current) {
             try {
                 recognitionRef.current.stop();
-            } catch (e) {}
+            } catch (err) {}
             recognitionRef.current = null;
         }
     }, []);
@@ -244,6 +246,10 @@ export const useVapi = (book: IBook) => {
             startListeningMic();
         }
     };
+
+    useEffect(() => {
+        sendMessageRef.current = sendMessage;
+    }, [sendMessage]);
 
     const clearErrors = async () => {
         setLimitError(null);

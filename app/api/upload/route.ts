@@ -2,6 +2,8 @@ import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Handles client-side file upload tokens for Vercel Blob storage.
  * Enforces Clerk authentication and restricts allowed file MIME types (PDF, JPEG, PNG, WEBP)

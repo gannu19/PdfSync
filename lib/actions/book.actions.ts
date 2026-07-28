@@ -219,11 +219,11 @@ async function generateEmbedding(text: string): Promise<number[] | null> {
     if (!apiKey) return null;
 
     try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: "models/text-embedding-004",
+                model: "models/gemini-embedding-001",
                 content: { parts: [{ text: text.slice(0, 2000) }] }
             })
         });
@@ -424,69 +424,82 @@ export const askBookQuestion = async (
             .sort({ segmentIndex: 1 })
             .lean();
 
-        const correctedQuery = correctTranscriptWithVocabulary(question, book.title, book.author, allSegments);
+        if (!allSegments || allSegments.length === 0) {
+            return {
+                success: false,
+                answer: "No text content was found for this book. If this is an image-based/scanned PDF, please ensure it has selectable text.",
+                citations: []
+            };
+        }
 
-        // 2. Conversation-aware query rewriting for follow-ups
+        const correctedQuery = correctTranscriptWithVocabulary(question, book.title, book.author, allSegments);
         const standaloneQuery = rewriteQueryWithHistory(correctedQuery, conversationHistory);
         const qLower = standaloneQuery.toLowerCase();
 
-        // Generate vector embedding for user query
-        const queryVector = await generateEmbedding(standaloneQuery);
+        // 2. Query Intent Routing: Summary/Overview vs Factual Detail Search
+        const isSummaryQuery = /(summariz|summary|overview|takeaway|main point|what is standard|chapter|synopsis|about)/i.test(standaloneQuery);
 
-        // Extract query keywords (ignoring stop words)
-        const stopWords = new Set(['what', 'were', 'from', 'this', 'that', 'with', 'have', 'more', 'about', 'book', 'tell', 'give', 'does', 'which', 'when', 'where', 'how', 'show', 'mean']);
-        const keywords = qLower
-            .replace(/[^\w\s]/g, '')
-            .split(/\s+/)
-            .filter((w) => w.length > 2 && !stopWords.has(w));
+        let selectedSegments: typeof allSegments = [];
 
-        // 3. Hybrid Vector + Keyword Scoring across ALL segments
-        const nonBoilerplate = allSegments.filter(s => 
-            !s.content.toLowerCase().includes('copyright') && 
-            !s.content.toLowerCase().includes('all rights reserved')
-        );
-        const searchPool = nonBoilerplate.length > 0 ? nonBoilerplate : allSegments;
+        if (isSummaryQuery) {
+            // For summary/overview questions, sample segments across the book structure
+            const total = allSegments.length;
+            const step = Math.max(1, Math.floor(total / 12));
+            for (let i = 0; i < total && selectedSegments.length < 12; i += step) {
+                selectedSegments.push(allSegments[i]);
+            }
+        } else {
+            // Generate vector embedding for user query
+            const queryVector = await generateEmbedding(standaloneQuery);
 
-        const scoredSegments = searchPool.map((seg) => {
-            const contentLower = seg.content.toLowerCase();
-            const headingLower = (seg.heading || '').toLowerCase();
-            let keywordScore = 0;
+            const stopWords = new Set(['what', 'were', 'from', 'this', 'that', 'with', 'have', 'more', 'about', 'book', 'tell', 'give', 'does', 'which', 'when', 'where', 'how', 'show', 'mean']);
+            const keywords = qLower
+                .replace(/[^\w\s]/g, '')
+                .split(/\s+/)
+                .filter((w) => w.length > 2 && !stopWords.has(w));
 
-            keywords.forEach((kw) => {
-                if (contentLower.includes(kw)) keywordScore += 2;
-                if (headingLower.includes(kw)) keywordScore += 4;
+            const nonBoilerplate = allSegments.filter(s => 
+                !s.content.toLowerCase().includes('copyright') && 
+                !s.content.toLowerCase().includes('all rights reserved')
+            );
+            const searchPool = nonBoilerplate.length > 0 ? nonBoilerplate : allSegments;
+
+            const scoredSegments = searchPool.map((seg) => {
+                const contentLower = seg.content.toLowerCase();
+                const headingLower = (seg.heading || '').toLowerCase();
+                let keywordScore = 0;
+
+                keywords.forEach((kw) => {
+                    if (contentLower.includes(kw)) keywordScore += 3;
+                    if (headingLower.includes(kw)) keywordScore += 6;
+                });
+
+                if (contentLower.includes(qLower)) keywordScore += 12;
+
+                let vectorScore = 0;
+                if (queryVector && seg.embedding && Array.isArray(seg.embedding)) {
+                    vectorScore = cosineSimilarity(queryVector, seg.embedding) * 20;
+                }
+
+                return { seg, score: keywordScore + vectorScore };
             });
 
-            // Exact phrase bonus
-            if (contentLower.includes(qLower)) keywordScore += 10;
+            scoredSegments.sort((a, b) => b.score - a.score);
 
-            // Cosine similarity vector search score
-            let vectorScore = 0;
-            if (queryVector && seg.embedding && Array.isArray(seg.embedding)) {
-                vectorScore = cosineSimilarity(queryVector, seg.embedding) * 15;
-            }
+            const topSegments = scoredSegments
+                .filter(item => item.score > 0)
+                .slice(0, 10)
+                .map(item => item.seg);
 
-            const totalScore = keywordScore + vectorScore;
-            return { seg, score: totalScore, vectorScore, keywordScore };
-        });
-
-        scoredSegments.sort((a, b) => b.score - a.score);
-
-        // Take top 6 most relevant segments from hybrid vector search
-        const topSegments = scoredSegments
-            .filter(item => item.score > 0)
-            .slice(0, 6)
-            .map(item => item.seg);
-
-        // Fallback: If no keywords or vectors matched, use top 4 body segments
-        const selectedSegments = topSegments.length > 0 ? topSegments : searchPool.slice(0, 4);
+            selectedSegments = topSegments.length > 0 ? topSegments : searchPool.slice(0, 6);
+        }
 
         // Build context with page numbers and headings
         const contextText = selectedSegments
             .map(s => `[Page ${s.pageNumber || 1}${s.heading ? ` | Heading: ${s.heading}` : ''}]\n${s.content}`)
             .join("\n\n---\n\n");
 
-        // 4. Grounded Prompt with Anti-Hallucination Guardrails & Page Citation Rules
+        // 3. Grounded Gemini Prompt with Page Citation Rules
         const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
         if (apiKey) {
@@ -494,22 +507,20 @@ export const askBookQuestion = async (
                 const promptText = `You are a document question-answering voice assistant for the book "${book.title}" by ${book.author}.
 
 Instructions & Grounding Rules:
-1. Answer the user's question directly, accurately, genuinely, and concisely based strictly on the provided context.
-2. Every main statement MUST cite the exact page number using bracket notation like [Page X] so the PDF viewer automatically jumps and highlights that page for the user.
-3. Include brief, exact quotes from the text to ensure 100% genuine alignment between the question asked and the book content.
-4. Do NOT fabricate or invent information that is not supported by the retrieved document context.
-5. If the retrieved context does NOT contain enough information to answer reliably, clearly state: "I could not find sufficient information in uploaded book segments to answer that question."
-6. Format response for easy reading and natural voice speech delivery.
+1. Answer the user's question directly, accurately, genuinely, and comprehensively based on the provided book context.
+2. ALWAYS cite exact page numbers using bracket notation like [Page X] whenever referencing information so the user can click to jump to that page.
+3. If the user asks for a summary or general question, synthesize an insightful overview using the provided document excerpts.
+4. Format your response for clear reading and smooth voice speech delivery.
 
 Retrieved Document Context:
 ---
-${contextText.slice(0, 7000)}
+${contextText.slice(0, 30000)}
 ---
 
 User Question: "${correctedQuery}"
 ${standaloneQuery !== correctedQuery ? `(Rewritten Query Context: "${standaloneQuery}")` : ''}`;
 
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -534,7 +545,7 @@ ${standaloneQuery !== correctedQuery ? `(Rewritten Query Context: "${standaloneQ
                     }
                 }
             } catch (llmErr) {
-                console.error("Gemini LLM call failed, falling back to smart grounded synthesizer:", llmErr);
+                console.error("Gemini LLM call failed:", llmErr);
             }
         }
 
@@ -544,7 +555,7 @@ ${standaloneQuery !== correctedQuery ? `(Rewritten Query Context: "${standaloneQ
 
         return {
             success: true,
-            answer: `Based on **"${book.title}"** (Page ${pageNum}):\n\n${bestSeg ? bestSeg.content.slice(0, 400) : 'Information available in uploaded segments.'}\n\nSource: [Page ${pageNum}]`,
+            answer: `According to **"${book.title}"** (Page ${pageNum}):\n\n${bestSeg ? bestSeg.content.slice(0, 500) : 'Information available in uploaded segments.'}\n\n[Page ${pageNum}]`,
             citations: [{ pageNumber: pageNum, text: bestSeg ? bestSeg.content.slice(0, 150) : '' }]
         };
 

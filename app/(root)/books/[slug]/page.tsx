@@ -5,6 +5,7 @@ import { getBookBySlug } from '@/lib/actions/book.actions';
 import BookDetailsClient from '@/components/BookDetailsClient';
 
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: Promise<{

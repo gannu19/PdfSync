@@ -116,7 +116,13 @@ export const splitPagesIntoSegments = (
     let currentStartPage = 1;
     let currentHeading = '';
 
-    const headingRegex = /^(?:Chapter\s+\d+|Section\s+\d+|\d+\.\d+\s+[A-Z]|[A-Z0-9\s]{4,50}$)/i;
+    const isHeadingLine = (line: string) => {
+        if (line.length > 70 || line.endsWith('.')) return false;
+        if (/^(?:Chapter|Section|Part|Unit|Lesson|Module)\s+\d+/i.test(line)) return true;
+        if (/^\d+(\.\d+)*\s+[A-Z]/i.test(line)) return true;
+        if (line === line.toUpperCase() && line.replace(/[^A-Z]/g, '').length >= 4) return true;
+        return false;
+    };
 
     for (const page of pages) {
         const lines = page.text.split(/(?<=[.!?])\s+|\n+/);
@@ -125,7 +131,7 @@ export const splitPagesIntoSegments = (
             const trimmedLine = line.trim();
             if (!trimmedLine) continue;
 
-            if (headingRegex.test(trimmedLine) && trimmedLine.length < 60) {
+            if (isHeadingLine(trimmedLine)) {
                 currentHeading = trimmedLine;
             }
 
